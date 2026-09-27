@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skyline Heights - Smart Society Portal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        themeOrange: {
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(180deg, #180d1e 0%, #291223 35%, #4a2128 65%, #2a1b18 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        /* Interactive Canvas Background Overlay */
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Styling */
+        .glass-panel {
+            background: rgba(23, 15, 30, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-panel-glow {
+            background: rgba(30, 18, 38, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            box-shadow: 0 0 25px rgba(249, 115, 22, 0.15);
+        }
+
+        .glass-input {
+            background: rgba(15, 9, 21, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .glass-input:focus {
+            border-color: #f97316;
+            outline: none;
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between min-h-screen relative overflow-x-hidden">
+
+    <!-- INTERACTIVE CURSOR-FOLLOWING PARTICLE CANVAS -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- HEADER / NAVIGATION BAR -->
+    <header class="border-b border-white/10 bg-black/40 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-themeOrange-600 to-amber-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-themeOrange-600/30">
+                    <i class="fa-solid fa-city"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight text-white">Skyline<span class="text-themeOrange-500">Heights</span></span>
+                    <p class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Smart Society Portal</p>
+                </div>
+            </div>
+
+            <div id="nav-user-info" class="hidden flex items-center space-x-4">
+                <div class="text-right hidden sm:block">
+                    <p id="user-display-name" class="text-sm font-bold text-slate-100">User</p>
+                    <span id="user-display-role" class="text-[10px] px-2.5 py-0.5 rounded-full bg-themeOrange-500/20 text-themeOrange-500 border border-themeOrange-500/40 font-bold uppercase tracking-wider">Role</span>
+                </div>
+                <button onclick="logout()" class="bg-white/10 hover:bg-rose-600/80 text-white px-4 py-2 rounded-xl text-xs font-semibold transition border border-white/10">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BODY CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full relative z-10">
+
+        <!-- ========================================== -->
+        <!-- 1. AUTHENTICATION / LOGIN SECTION -->
+        <!-- ========================================== -->
+        <section id="login-section" class="max-w-md mx-auto my-6">
+            <div class="glass-panel-glow rounded-3xl p-8 shadow-2xl space-y-6">
+                <div class="text-center space-y-2">
+                    <div class="w-16 h-16 bg-themeOrange-500/20 text-themeOrange-500 border border-themeOrange-500/30 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white">Welcome Back</h2>
+                    <p class="text-xs text-slate-400">Log into your smart society portal account</p>
+                </div>
+
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">Select Portal Role</label>
+                        <select id="role-select" onchange="toggleResidentFields()" class="w-full py-2.5 px-4 rounded-xl text-sm glass-input bg-slate-900">
+                            <option value="resident">Resident Dashboard</option>
+                            <option value="staff">Staff / Maintenance Dashboard</option>
+                            <option value="admin">Society Admin Command Center</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">Username / Name</label>
+                        <input type="text" id="username" required placeholder="e.g. John Doe" class="w-full py-2.5 px-4 rounded-xl text-sm glass-input">
+                    </div>
+
+                    <!-- Resident Multi-Flat Entry Input -->
+                    <div id="flats-input-container">
+                        <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                            Flat Number(s) <span class="text-slate-400 font-normal">(comma-separated for multiple)</span>
+                        </label>
+                        <input type="text" id="user-flats" placeholder="e.g. A-402, B-104" class="w-full py-2.5 px-4 rounded-xl text-sm glass-input">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">Password</label>
+                        <input type="password" id="password" required placeholder="••••••••" class="w-full py-2.5 px-4 rounded-xl text-sm glass-input">
+                        <p class="text-[10px] text-slate-400 mt-1">Must be at least 8 chars, with 1 uppercase, 1 number & 1 special character.</p>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-themeOrange-500 to-amber-500 hover:from-themeOrange-600 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-themeOrange-500/25 transition text-sm flex items-center justify-center space-x-2">
+                        <span>Sign In</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 2. RESIDENT DASHBOARD -->
+        <!-- ========================================== -->
+        <section id="resident-dashboard" class="hidden space-y-6">
+            <div class="glass-panel p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Resident Portal</h2>
+                    <p class="text-xs text-slate-400">Lodge society complaints and track real-time technician progress.</p>
+                </div>
+                <div class="flex items-center space-x-3 bg-white/5 p-3 rounded-2xl border border-white/10">
+                    <i class="fa-solid fa-house-user text-themeOrange-500 text-2xl"></i>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">Active Selected Flat</p>
+                        <!-- Dynamic Active Flat Dropdown for Multi-Flat Owners -->
+                        <select id="active-flat-selector" onchange="onFlatChange()" class="bg-slate-900 text-white font-bold text-xs rounded-lg p-1.5 border border-white/20 mt-0.5 focus:outline-none">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- SUBMIT FORM -->
+                <div class="lg:col-span-1 glass-panel p-6 rounded-3xl space-y-4">
+                    <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-circle-plus text-themeOrange-500"></i>
+                        <span>Register New Complaint</span>
+                    </h3>
+
+                    <form id="complaint-form" onsubmit="submitComplaint(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Target Flat / Location</label>
+                            <input type="text" id="complaint-flat-display" readonly class="w-full p-2.5 rounded-xl text-xs glass-input bg-white/5 font-bold text-amber-400">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Complaint Category</label>
+                            <select id="category" required class="w-full p-2.5 rounded-xl text-xs glass-input bg-slate-900">
+                                <option value="Electrical">Electrical</option>
+                                <option value="Plumbing">Plumbing</option>
+                                <option value="Housekeeping">Housekeeping</option>
+                                <option value="Carpentry">Carpentry</option>
+                                <option value="Elevator">Elevator / Lift</option>
+                                <option value="Security">Security & CCTV</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Urgency</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="priority" value="Low" class="peer hidden">
+                                    <span class="block text-center text-xs p-2 rounded-xl border border-white/10 peer-checked:bg-slate-700 peer-checked:border-slate-400 font-medium text-slate-300">Low</span>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="priority" value="Medium" checked class="peer hidden">
+                                    <span class="block text-center text-xs p-2 rounded-xl border border-white/10 peer-checked:bg-amber-500/20 peer-checked:border-amber-500 text-amber-400 font-medium">Medium</span>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="priority" value="High" class="peer hidden">
+                                    <span class="block text-center text-xs p-2 rounded-xl border border-white/10 peer-checked:bg-rose-500/20 peer-checked:border-rose-500 text-rose-400 font-medium">High</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Description</label>
+                            <textarea id="description" rows="3" required placeholder="Describe issue details..." class="w-full p-2.5 rounded-xl text-xs glass-input"></textarea>
+                        </div>
+
+                        <button type="submit" class="w-full py-2.5 bg-themeOrange-600 hover:bg-themeOrange-700 text-white font-bold rounded-xl transition text-xs flex items-center justify-center space-x-2 shadow-lg shadow-themeOrange-600/30">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Submit Complaint</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- MY COMPLAINTS TRACKER -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-3xl space-y-4">
+                    <h3 class="text-base font-bold text-white flex items-center justify-between">
+                        <span class="flex items-center space-x-2">
+                            <i class="fa-solid fa-clock-rotate-left text-themeOrange-500"></i>
+                            <span>My Ticket History</span>
+                        </span>
+                        <span id="res-complaint-count" class="bg-themeOrange-500/20 text-themeOrange-400 text-xs px-3 py-1 rounded-full font-bold border border-themeOrange-500/30">0 Active</span>
+                    </h3>
+
+                    <div id="resident-tickets-list" class="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                        <!-- Dynamic render -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 3. STAFF DASHBOARD -->
+        <!-- ========================================== -->
+        <section id="staff-dashboard" class="hidden space-y-6">
+            <div class="glass-panel p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Maintenance & Service Staff Queue</h2>
+                    <p class="text-xs text-slate-400">View tasks, update active work statuses, and record resolution notes.</p>
+                </div>
+                <div class="flex items-center space-x-2 bg-black/40 p-1.5 rounded-2xl border border-white/10 text-xs font-semibold flex-wrap gap-y-1">
+                    <button onclick="filterStaffTickets('all')" id="btn-staff-all" class="px-3 py-1.5 rounded-xl bg-themeOrange-500 text-white shadow">All Tasks</button>
+                    <button onclick="filterStaffTickets('Electrical')" id="btn-staff-elec" class="px-3 py-1.5 rounded-xl text-slate-300 hover:text-white">Electrical</button>
+                    <button onclick="filterStaffTickets('Plumbing')" id="btn-staff-plumb" class="px-3 py-1.5 rounded-xl text-slate-300 hover:text-white">Plumbing</button>
+                    <button onclick="filterStaffTickets('Housekeeping')" id="btn-staff-house" class="px-3 py-1.5 rounded-xl text-slate-300 hover:text-white">Housekeeping</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="glass-panel p-5 rounded-2xl flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center text-xl font-bold border border-amber-500/30">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">Pending Tasks</p>
+                        <p id="staff-pending-count" class="text-2xl font-black text-white">0</p>
+                    </div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-cyan-500/20 text-cyan-400 rounded-xl flex items-center justify-center text-xl font-bold border border-cyan-500/30">
+                        <i class="fa-solid fa-spinner"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">In Progress</p>
+                        <p id="staff-progress-count" class="text-2xl font-black text-white">0</p>
+                    </div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center text-xl font-bold border border-emerald-500/30">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">Resolved Tasks</p>
+                        <p id="staff-resolved-count" class="text-2xl font-black text-white">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-3xl space-y-4">
+                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-screwdriver-wrench text-themeOrange-500"></i>
+                    <span>Assigned Service Queue</span>
+                </h3>
+                <div id="staff-tickets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dynamic render -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 4. ADMIN DASHBOARD -->
+        <!-- ========================================== -->
+        <section id="admin-dashboard" class="hidden space-y-6">
+            <div class="glass-panel p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Admin Command Center</h2>
+                    <p class="text-xs text-slate-400">Society overview, staff assignment controls, and master complaint logs.</p>
+                </div>
+                <button onclick="triggerAutoAssign()" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-lg transition">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>Auto-Assign Staff</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass-panel p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Total Tickets</p>
+                    <p id="admin-total" class="text-2xl font-black text-white mt-1">0</p>
+                </div>
+                <div class="glass-panel p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Pending</p>
+                    <p id="admin-pending" class="text-2xl font-black text-amber-400 mt-1">0</p>
+                </div>
+                <div class="glass-panel p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">In Progress</p>
+                    <p id="admin-progress" class="text-2xl font-black text-cyan-400 mt-1">0</p>
+                </div>
+                <div class="glass-panel p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Resolved</p>
+                    <p id="admin-resolved" class="text-2xl font-black text-emerald-400 mt-1">0</p>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl overflow-hidden">
+                <div class="p-6 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-cat text-themeOrange-500"></i>
+                        <span>Master Complaint Register</span>
+                    </h3>
+                    <div class="relative w-full sm:w-64">
+                        <input type="text" id="admin-search" oninput="renderAdminTable()" placeholder="Search tickets..." class="w-full pl-9 pr-3 py-2 text-xs glass-input rounded-xl">
+                        <i class="fa-solid fa-search absolute left-3 top-3 text-xs text-slate-400"></i>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-black/40 text-slate-200 uppercase font-bold border-b border-white/10">
+                            <tr>
+                                <th class="p-3.5">ID</th>
+                                <th class="p-3.5">Flat No.</th>
+                                <th class="p-3.5">Category</th>
+                                <th class="p-3.5">Description</th>
+                                <th class="p-3.5">Priority</th>
+                                <th class="p-3.5">Status</th>
+                                <th class="p-3.5">Assigned Staff</th>
+                                <th class="p-3.5 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="divide-y divide-white/5">
+                            <!-- Dynamic render -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-white/10 bg-black/50 py-6 text-center text-xs text-slate-400 relative z-10">
+        <p>&copy; 2026 Skyline Heights Smart Society Portal. All Rights Reserved.</p>
+    </footer>
+
+    <!-- INTERACTIVE CANVAS & SYSTEM LOGIC SCRIPT -->
+    <script>
+        // ==========================================
+        // 1. INTERACTIVE PARTICLE CANVAS EFFECT
+        // ==========================================
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        const mouse = { x: null, y: null, radius: 150 };
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+        });
+
+        window.addEventListener('mouseleave', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 4 + 1.5;
+                this.baseX = this.x;
+                this.baseY = this.y;
+                this.vx = (Math.random() - 0.5) * 0.8;
+                this.vy = (Math.random() - 0.5) * 0.8;
+                this.alpha = Math.random() * 0.6 + 0.2;
+                this.color = Math.random() > 0.4 ? 'rgba(249, 115, 22, ' : 'rgba(255, 255, 255, ';
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + this.alpha + ')';
+                ctx.fill();
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+
+                if (mouse.x !== null && mouse.y !== null) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouse.radius) {
+                        let force = (mouse.radius - distance) / mouse.radius;
+                        let directionX = (dx / distance) * force * 3;
+                        let directionY = (dy / distance) * force * 3;
+                        
+                        this.x -= directionX;
+                        this.y -= directionY;
+                    }
+                }
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            const count = Math.floor((width * height) / 12000);
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function connectParticles() {
+            for (let a = 0; a < particles.length; a++) {
+                for (let b = a; b < particles.length; b++) {
+                    let dx = particles[a].x - particles[b].x;
+                    let dy = particles[a].y - particles[b].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 110) {
+                        let opacity = (1 - distance / 110) * 0.25;
+                        ctx.strokeStyle = `rgba(249, 115, 22, ${opacity})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[a].x, particles[a].y);
+                        ctx.lineTo(particles[b].x, particles[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animateCanvas() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            connectParticles();
+            requestAnimationFrame(animateCanvas);
+        }
+
+        initParticles();
+        animateCanvas();
+
+        // ==========================================
+        // 2. PORTAL STATE & LOGIC
+        // ==========================================
+        let complaints = JSON.parse(localStorage.getItem('society_complaints_v4')) || [
+            {
+                id: "TICK-101",
+                flat: "A-402",
+                category: "Electrical",
+                priority: "High",
+                description: "Main circuit breaker tripping repeatedly.",
+                status: "In Progress",
+                assignedTo: "Rajesh (Electrician)",
+                residentName: "Resident User",
+                date: "2026-09-25 09:30 AM",
+                notes: "Inspected meter box. Replacing main switch."
+            },
+            {
+                id: "TICK-102",
+                flat: "B-101",
+                category: "Housekeeping",
+                priority: "Medium",
+                description: "Corridor deep cleaning requested.",
+                status: "Pending",
+                assignedTo: "Aarti (Housekeeping Lead)",
+                residentName: "Resident User",
+                date: "2026-09-25 10:15 AM",
+                notes: ""
+            },
+            {
+                id: "TICK-103",
+                flat: "C-305",
+                category: "Plumbing",
+                priority: "High",
+                description: "Water pipe leakage near sink.",
+                status: "Resolved",
+                assignedTo: "Suresh (Plumber)",
+                residentName: "Resident User",
+                date: "2026-09-24 04:20 PM",
+                notes: "Replaced pipe joints and sealed leaks."
+            }
+        ];
+
+        let currentUser = null;
+        let staffFilter = 'all';
+
+        function saveData() {
+            localStorage.setItem('society_complaints_v4', JSON.stringify(complaints));
+        }
+
+        function toggleResidentFields() {
+            const role = document.getElementById('role-select').value;
+            const container = document.getElementById('flats-input-container');
+            if (role === 'resident') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // Strong password validator rule
+        function validateStrongPassword(pw) {
+            // Min 8 chars, 1 uppercase, 1 digit, 1 special char
+            const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!\%*?&#]{8,}$/;
+            return strongRegex.test(pw);
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const role = document.getElementById('role-select').value;
+            const password = document.getElementById('password').value;
+            const flatsRaw = document.getElementById('user-flats').value;
+
+            // Password strength check
+            if (!validateStrongPassword(password)) {
+                alert("Password is too weak!\n\nRequirements:\n- At least 8 characters\n- At least 1 uppercase letter\n- At least 1 digit\n- At least 1 special character (@$!%*?&#)");
+                return;
+            }
+
+            let flats = [];
+            if (role === 'resident') {
+                if (!flatsRaw.trim()) {
+                    alert("Please enter at least one Flat Number.");
+                    return;
+                }
+                flats = flatsRaw.split(',').map(f => f.trim()).filter(f => f.length > 0);
+            }
+
+            currentUser = {
+                name: username,
+                role: role,
+                flats: flats,
+                selectedFlat: flats.length > 0 ? flats[0] : null
+            };
+
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('nav-user-info').classList.remove('hidden');
+            
+            document.getElementById('user-display-name').textContent = username;
+            document.getElementById('user-display-role').textContent = role;
+
+            document.getElementById('resident-dashboard').classList.add('hidden');
+            document.getElementById('staff-dashboard').classList.add('hidden');
+            document.getElementById('admin-dashboard').classList.add('hidden');
+
+            if (role === 'resident') {
+                setupFlatSelector();
+                document.getElementById('resident-dashboard').classList.remove('hidden');
+                renderResidentTickets();
+            } else if (role === 'staff') {
+                document.getElementById('staff-dashboard').classList.remove('hidden');
+                renderStaffTickets();
+            } else if (role === 'admin') {
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                renderAdminDashboard();
+            }
+        }
+
+        function setupFlatSelector() {
+            const selector = document.getElementById('active-flat-selector');
+            selector.innerHTML = "";
+            currentUser.flats.forEach(flat => {
+                const opt = document.createElement('option');
+                opt.value = flat;
+                opt.textContent = `Flat ${flat}`;
+                selector.appendChild(opt);
+            });
+            selector.value = currentUser.selectedFlat;
+            document.getElementById('complaint-flat-display').value = currentUser.selectedFlat;
+        }
+
+        function onFlatChange() {
+            currentUser.selectedFlat = document.getElementById('active-flat-selector').value;
+            document.getElementById('complaint-flat-display').value = currentUser.selectedFlat;
+            renderResidentTickets();
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('nav-user-info').classList.add('hidden');
+            document.getElementById('resident-dashboard').classList.add('hidden');
+            document.getElementById('staff-dashboard').classList.add('hidden');
+            document.getElementById('admin-dashboard').classList.add('hidden');
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            toggleResidentFields();
+        }
+
+        function submitComplaint(e) {
+            e.preventDefault();
+            const category = document.getElementById('category').value;
+            const priority = document.querySelector('input[name="priority"]:checked').value;
+            const description = document.getElementById('description').value;
+
+            const newTicket = {
+                id: "TICK-" + Math.floor(100 + Math.random() * 900),
+                flat: currentUser.selectedFlat,
+                category,
+                priority,
+                description,
+                status: "Pending",
+                assignedTo: autoAssignCategory(category),
+                residentName: currentUser ? currentUser.name : "Resident",
+                date: new Date().toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                notes: ""
+            };
+
+            complaints.unshift(newTicket);
+            saveData();
+            document.getElementById('complaint-form').reset();
+            document.getElementById('complaint-flat-display').value = currentUser.selectedFlat;
+            renderResidentTickets();
+            alert("Complaint submitted successfully for Flat " + currentUser.selectedFlat + "!\nTicket ID: " + newTicket.id);
+        }
+
+        function autoAssignCategory(cat) {
+            const map = {
+                'Electrical': 'Rajesh (Electrician)',
+                'Plumbing': 'Suresh (Plumber)',
+                'Housekeeping': 'Aarti (Housekeeping Lead)',
+                'Carpentry': 'Ramesh (Carpenter)',
+                'Elevator': 'Karan (Technician)',
+                'Security': 'Vijay (Security Head)'
+            };
+            return map[cat] || 'Unassigned';
+        }
+
+        function renderResidentTickets() {
+            const container = document.getElementById('resident-tickets-list');
+            container.innerHTML = "";
+
+            // Show tickets for user's flats
+            const userTickets = complaints.filter(c => currentUser.flats.includes(c.flat));
+            document.getElementById('res-complaint-count').textContent = `${userTickets.length} Total`;
+
+            if (userTickets.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-8 text-xs">No complaint tickets logged for your flat(s) yet.</div>`;
+                return;
+            }
+
+            userTickets.forEach(item => {
+                const statusBadge = item.status === 'Pending' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                                    item.status === 'In Progress' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+
+                const card = document.createElement('div');
+                card.className = "bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2 hover:bg-white/10 transition";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-sm text-white">${item.id} &bull; ${item.category}</span>
+                        <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusBadge}">${item.status}</span>
+                    </div>
+                    <p class="text-xs text-slate-300">${item.description}</p>
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-white/5">
+                        <span><i class="fa-solid fa-building mr-1 text-themeOrange-500"></i> Flat: <strong>${item.flat}</strong></span>
+                        <span><i class="fa-solid fa-user-gear mr-1"></i> ${item.assignedTo}</span>
+                    </div>
+                    ${item.notes ? `<div class="bg-cyan-500/10 border border-cyan-500/20 p-2 rounded-xl text-xs text-cyan-300"><strong>Staff Note:</strong> ${item.notes}</div>` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterStaffTickets(cat) {
+            staffFilter = cat;
+            renderStaffTickets();
+        }
+
+        function renderStaffTickets() {
+            const container = document.getElementById('staff-tickets-list');
+            container.innerHTML = "";
+
+            let list = complaints;
+            if (staffFilter !== 'all') {
+                list = complaints.filter(c => c.category === staffFilter);
+            }
+
+            document.getElementById('staff-pending-count').textContent = list.filter(c => c.status === 'Pending').length;
+            document.getElementById('staff-progress-count').textContent = list.filter(c => c.status === 'In Progress').length;
+            document.getElementById('staff-resolved-count').textContent = list.filter(c => c.status === 'Resolved').length;
+
+            if (list.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center text-slate-400 py-8 text-xs">No active tasks in this category.</div>`;
+                return;
+            }
+
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-sm text-white">${item.id} (${item.category})</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-white/10 text-slate-300">${item.priority} Urgency</span>
+                    </div>
+                    <p class="text-xs text-slate-300">${item.description}</p>
+                    <div class="text-[11px] text-slate-400 space-y-0.5">
+                        <p><strong>Flat / Location:</strong> ${item.flat}</p>
+                        <p><strong>Date Logged:</strong> ${item.date}</p>
+                        <p><strong>Assigned To:</strong> ${item.assignedTo}</p>
+                    </div>
+                    <div class="space-y-2 pt-2 border-t border-white/10">
+                        <div class="flex space-x-2">
+                            <button onclick="updateStatus('${item.id}', 'In Progress')" class="flex-1 text-xs py-2 bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 rounded-xl font-bold border border-cyan-500/30 transition">Start Work</button>
+                            <button onclick="updateStatus('${item.id}', 'Resolved')" class="flex-1 text-xs py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-xl font-bold border border-emerald-500/30 transition">Mark Resolved</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateStatus(id, newStatus) {
+            const ticket = complaints.find(c => c.id === id);
+            if (ticket) {
+                ticket.status = newStatus;
+                const note = prompt("Add resolution details or progress note:", ticket.notes);
+                if (note !== null) ticket.notes = note;
+                saveData();
+                renderStaffTickets();
+            }
+        }
+
+        function renderAdminDashboard() {
+            document.getElementById('admin-total').textContent = complaints.length;
+            document.getElementById('admin-pending').textContent = complaints.filter(c => c.status === 'Pending').length;
+            document.getElementById('admin-progress').textContent = complaints.filter(c => c.status === 'In Progress').length;
+            document.getElementById('admin-resolved').textContent = complaints.filter(c => c.status === 'Resolved').length;
+            
+            renderAdminTable();
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-table-body');
+            const query = document.getElementById('admin-search').value.toLowerCase();
+            tbody.innerHTML = "";
+
+            const filtered = complaints.filter(c => 
+                c.id.toLowerCase().includes(query) ||
+                c.flat.toLowerCase().includes(query) ||
+                c.category.toLowerCase().includes(query) ||
+                c.assignedTo.toLowerCase().includes(query)
+            );
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/5 transition";
+                tr.innerHTML = `
+                    <td class="p-3.5 font-bold text-white">${item.id}</td>
+                    <td class="p-3.5 font-semibold text-amber-400">${item.flat}</td>
+                    <td class="p-3.5"><span class="bg-white/10 text-slate-200 px-2 py-0.5 rounded text-[11px]">${item.category}</span></td>
+                    <td class="p-3.5 text-slate-300 truncate max-w-xs">${item.description}</td>
+                    <td class="p-3.5 font-bold text-${item.priority === 'High' ? 'rose' : 'amber'}-400">${item.priority}</td>
+                    <td class="p-3.5 font-bold">${item.status}</td>
+                    <td class="p-3.5 text-slate-300">${item.assignedTo}</td>
+                    <td class="p-3.5 text-right">
+                        <button onclick="deleteTicket('${item.id}')" class="text-rose-400 hover:text-rose-300 font-bold text-xs">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function triggerAutoAssign() {
+            complaints.forEach(c => {
+                if (c.assignedTo === 'Unassigned') {
+                    c.assignedTo = autoAssignCategory(c.category);
+                }
+            });
+            saveData();
+            renderAdminDashboard();
+            alert("Auto-assignment complete across all service categories!");
+        }
+
+        function deleteTicket(id) {
+            if (confirm("Delete complaint ticket " + id + "?")) {
+                complaints = complaints.filter(c => c.id !== id);
+                saveData();
+                renderAdminDashboard();
+            }
+        }
+    </script>
+</body>
+</html>
